@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hermes-Living-Desktop · Promo</title>
+<style>
+  :root{
+    --bg:#0a0d16; --bg2:#10141f; --card:#151a28; --line:#232a3d;
+    --text:#e6eaf5; --muted:#8b93a8; --gold:#ffd54a; --gold-ink:#231800;
+    --accent:#7ba7ff;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{background:#05070d;color:var(--text);font-family:"Segoe UI",system-ui,-apple-system,sans-serif;
+    display:flex;flex-direction:column;align-items:center;gap:48px;padding:64px 32px}
+  .scene{width:min(1280px,100%)}
+  .scene-label{font-size:13px;letter-spacing:3px;color:var(--muted);margin-bottom:14px;text-transform:uppercase}
+
+  /* ── Hermes 窗口 ── */
+  .win{display:flex;height:660px;border:1px solid var(--line);border-radius:18px;overflow:hidden;
+    box-shadow:0 30px 80px rgba(0,0,0,.55)}
+  .side{width:230px;background:rgba(10,13,22,.92);border-right:1px solid var(--line);
+    display:flex;flex-direction:column;padding:16px 12px;gap:6px;flex-shrink:0}
+  .side .tabs{display:flex;gap:6px;margin-bottom:10px}
+  .side .tab{font-size:12px;padding:4px 10px;border-radius:8px;color:var(--muted)}
+  .side .tab.on{background:var(--card);color:var(--text)}
+  .side .btn{font-size:12px;color:var(--muted);padding:7px 10px;border-radius:8px;cursor:default}
+  .side .btn:hover{background:var(--card)}
+  .side .sess{font-size:12px;padding:9px 10px;border-radius:10px;background:var(--card);
+    border:1px solid var(--line)}
+  .side .sess .t{color:var(--text);font-weight:600}
+  .side .sess .m{color:var(--muted);font-size:11px;margin-top:3px}
+  .main{flex:1;display:flex;flex-direction:column;position:relative;
+    background:
+      linear-gradient(rgba(6,9,18,.62),rgba(6,9,18,.62)),
+      radial-gradient(1200px 600px at 70% 30%, rgba(123,167,255,.5), transparent 60%),
+      radial-gradient(900px 500px at 20% 80%, rgba(160,107,255,.35), transparent 60%),
+      linear-gradient(160deg,#0b1020 0%,#101a36 55%,#1c1433 100%);
+    background-size:cover;background-position:center}
+  .main .stars{position:absolute;inset:0;
+    background-image:radial-gradient(2px 2px at 20% 30%,rgba(255,255,255,.7),transparent 50%),
+      radial-gradient(1.5px 1.5px at 60% 20%,rgba(255,255,255,.5),transparent 50%),
+      radial-gradient(2px 2px at 80% 60%,rgba(255,255,255,.6),transparent 50%),
+      radial-gradient(1px 1px at 40% 70%,rgba(255,255,255,.45),transparent 50%),
+      radial-gradient(1.5px 1.5px at 10% 80%,rgba(255,255,255,.4),transparent 50%),
+      radial-gradient(1px 1px at 90% 15%,rgba(255,255,255,.5),transparent 50%)}
+  .main .chat{position:relative;padding:26px 34px;display:flex;flex-direction:column;gap:16px;max-width:640px}
+  .bubble{font-size:13px;line-height:1.6;color:rgba(230,234,245,.92)}
+  .bubble b{color:var(--gold);font-weight:600}
+  .main .badge{position:absolute;top:20px;left:26px;font-size:11px;letter-spacing:2px;color:var(--gold);
+    border:1px solid rgba(255,213,74,.5);padding:5px 12px;border-radius:999px;background:rgba(255,213,74,.08)}
+
+  /* ── Live Desk 面板 ── */
+  .desk{width:340px;border-left:1px solid var(--line);background:rgba(10,13,22,.94);
+    padding:18px 16px;display:flex;flex-direction:column;gap:14px;overflow:hidden;flex-shrink:0}
+  .desk .head{display:flex;align-items:center;justify-content:space-between}
+  .desk .title{font-size:11px;letter-spacing:3px;color:var(--muted)}
+  .dots{display:flex;gap:5px;align-items:center}
+  .dot{width:17px;height:17px;border-radius:50%;border:1px solid var(--line)}
+  .dot.active{border:2px solid var(--gold);box-shadow:0 0 7px rgba(255,213,74,.6)}
+  .gear{width:22px;height:22px;border-radius:50%;border:1px solid var(--gold);color:var(--gold);
+    display:flex;align-items:center;justify-content:center;font-size:12px;margin-left:3px}
+  .set{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+  .row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted)}
+  .row label{min-width:62px}
+  .pill{display:flex;gap:5px}
+  .pill span{font-size:10px;padding:2px 9px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .pill span.on{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+  .sw{width:32px;height:18px;border-radius:999px;background:var(--gold);position:relative;margin-left:auto}
+  .sw i{position:absolute;top:2px;right:2px;width:14px;height:14px;border-radius:50%;background:var(--gold-ink)}
+  input[type=range]{flex:1;accent-color:var(--gold)}
+  .val{font-size:10px;color:var(--gold);min-width:30px;text-align:right}
+  .card{border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:rgba(255,213,74,.04)}
+  .card .k{font-size:10px;letter-spacing:1.5px;color:var(--muted);margin-bottom:6px}
+  .card .big{font-size:26px;font-weight:300;color:var(--text)}
+  .kv{display:flex;justify-content:space-between;font-size:11px;padding:3px 0}
+  .kv .a{color:var(--muted)} .kv .b{color:var(--text);font-weight:500}
+  .todo{display:flex;flex-direction:column;gap:7px}
+  .todo .k{font-size:10px;letter-spacing:1.5px;color:var(--muted)}
+  .titem{display:flex;gap:8px;font-size:11px;color:var(--text);line-height:1.5;align-items:flex-start}
+  .titem i{width:7px;height:7px;border-radius:2px;margin-top:4px;flex-shrink:0}
+  .red{background:#ff7a7a}.yellow{background:#ffcc66}.green{background:#5fd38a}
+  .add{border:1px dashed rgba(255,213,74,.6);color:var(--gold);border-radius:10px;
+    padding:8px;text-align:center;font-size:12px}
+  .live{font-size:10px;color:var(--muted)}
+
+  /* ── 面板特写 ── */
+  .closeup{display:flex;gap:28px;align-items:flex-start}
+  .desk-big{width:420px;border:1px solid var(--line);border-radius:18px;background:rgba(10,13,22,.96);
+    padding:22px 20px;display:flex;flex-direction:column;gap:15px}
+  .notes{flex:1;display:flex;flex-direction:column;gap:16px}
+  .ncard{border:1px solid var(--line);border-radius:14px;padding:16px 18px;background:rgba(21,26,40,.7)}
+  .ncard h3{font-size:13px;color:var(--gold);margin-bottom:8px}
+  .ncard p{font-size:12px;line-height:1.7;color:var(--muted)}
+  .ncard p code{background:rgba(255,213,74,.12);color:var(--gold);padding:1px 6px;border-radius:5px;font-size:11px}
+  .ncard p b{color:var(--text)}
+</style>
+</head>
+<body>
+
+<!-- ═══ 场景一：主图 ═══ -->
+<div class="scene">
+  <div class="scene-label">01 · Live Desk inside Hermes</div>
+  <div class="win">
+    <div class="side">
+      <div class="tabs"><span class="tab on">Sessions</span><span class="tab">Bots</span><span class="tab">Terminal</span></div>
+      <div class="btn">New session</div>
+      <div class="btn">Skills &amp; tools</div>
+      <div class="btn">Messaging</div>
+      <div class="btn">Artifacts</div>
+      <div class="btn">Cron jobs</div>
+      <div class="btn" style="margin-bottom:8px">Search sessions…</div>
+      <div class="sess"><div class="t">Planning the week</div><div class="m">your-model · 42 msgs · now</div></div>
+      <div class="sess" style="background:transparent"><div class="t" style="color:var(--muted)">Yesterday</div><div class="m">Q3 review notes · 18 msgs</div></div>
+      <div class="sess" style="background:transparent"><div class="t" style="color:var(--muted)">Last week</div><div class="m">Release checklist · 9 msgs</div></div>
+    </div>
+    <div class="main">
+      <div class="stars"></div>
+      <div class="badge">WALLPAPER MODE · YOUR IMAGE · CHANGE ANYTIME</div>
+      <div class="chat">
+        <div class="bubble"><b>Live Desk</b> watches your usage, todos and notes in one pane.</div>
+        <div class="bubble">Pick any image as the chat wallpaper. Five themes, gold accents, a dim slider — all saved locally, zero network.</div>
+        <div class="bubble" style="color:var(--muted)">Theme: StarSky · Dim: 100% · Currency: CNY</div>
+      </div>
+    </div>
+    <div class="desk">
+      <div class="head">
+        <span class="title">LIVE DESK</span>
+        <span class="dots">
+          <span class="dot active" style="background:linear-gradient(135deg,#04060d,#7ba7ff)"></span>
+          <span class="dot" style="background:linear-gradient(135deg,#f6f6f8,#8a8f9c)"></span>
+          <span class="dot" style="background:linear-gradient(135deg,#03100f,#4fd6c0)"></span>
+          <span class="dot" style="background:linear-gradient(135deg,#140c08,#f0a050)"></span>
+          <span class="dot" style="background:linear-gradient(135deg,#0d0408,#ff6b8a)"></span>
+          <span class="gear">⚙</span>
+        </span>
+      </div>
+      <div class="set">
+        <div class="row"><label>Material</label><span class="sw"><i></i></span></div>
+        <div class="row"><label>Opacity</label><input type="range" value="20"><span class="val">20%</span></div>
+        <div class="row"><label>Money</label><span class="pill"><span class="on">CNY</span><span>USD</span><span>EUR</span><span>GBP</span><span>JPY</span></span></div>
+        <div class="row"><label>Wallpaper</label><span class="pill"><span style="color:var(--gold);border-color:var(--gold)">Upload image</span></span></div>
+        <div class="row"><label>Dim</label><input type="range" value="100"><span class="val">100%</span></div>
+      </div>
+      <div class="card">
+        <div class="k">USAGE</div>
+        <div class="big">¥8.42</div>
+        <div class="kv"><span class="a">session</span><span class="b">your-model</span></div>
+        <div class="kv"><span class="a">input · miss</span><span class="b">0.32M</span></div>
+        <div class="kv"><span class="a">cache · hit</span><span class="b">21.07M</span></div>
+        <div class="kv"><span class="a">all-time (main)</span><span class="b">¥46.80</span></div>
+      </div>
+      <div class="todo">
+        <div class="k">TODO</div>
+        <div class="titem"><i class="red"></i>Ship the v1.2 changelog with screenshots</div>
+        <div class="titem"><i class="red"></i>Review Q3 metrics before Friday</div>
+        <div class="titem"><i class="yellow"></i>Reply to the vendor's pricing email</div>
+        <div class="titem"><i class="green"></i>Update onboarding docs ✓</div>
+      </div>
+      <div class="add">+ Add module</div>
+      <div class="live">live: 0K tokens</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ 场景二：能力特写 ═══ -->
+<div class="scene">
+  <div class="scene-label">02 · Themes · Wallpaper · Modules</div>
+  <div class="closeup">
+    <div class="desk-big">
+      <div class="head">
+        <span class="title">LIVE DESK</span>
+        <span class="dots">
+          <span class="dot active" style="background:linear-gradient(135deg,#04060d,#7ba7ff)"></span>
+          <span class="dot" style="background:linear-gradient(135deg,#f6f6f8,#8a8f9c)"></span>
+          <span class="dot" style="background:linear-gradient(135deg,#03100f,#4fd6c0)"></span>
+          <span class="dot" style="background:linear-gradient(135deg,#140c08,#f0a050)"></span>
+          <span class="dot" style="background:linear-gradient(135deg,#0d0408,#ff6b8a)"></span>
+          <span class="gear">⚙</span>
+        </span>
+      </div>
+      <div class="set">
+        <div class="row"><label>Material</label><span class="sw"><i></i></span></div>
+        <div class="row"><label>Dim</label><input type="range" value="100"><span class="val">100%</span></div>
+      </div>
+      <div class="card">
+        <div class="k">USAGE</div>
+        <div class="big">¥8.42</div>
+        <div class="kv"><span class="a">session</span><span class="b">your-model</span></div>
+        <div class="kv"><span class="a">cache · hit</span><span class="b">21.07M</span></div>
+      </div>
+      <div class="todo">
+        <div class="k">TODO</div>
+        <div class="titem"><i class="yellow"></i>Move up / down, edit, delete — every module has a ⋯ menu</div>
+      </div>
+      <div class="add">+ Add module</div>
+    </div>
+    <div class="notes">
+      <div class="ncard">
+        <h3>Five built-in themes</h3>
+        <p>StarSky · Moon · Tide · Dawn · Ember — light and dark palettes, soft selection rows,<br>registered into Hermes' own theme picker.</p>
+      </div>
+      <div class="ncard">
+        <h3>Your image → theme + wallpaper</h3>
+        <p>Upload any image and it becomes <b>the chat wallpaper</b> with an auto-generated theme from its colors. A <b>Dim</b> slider keeps text readable. Saved locally, restored on restart.</p>
+      </div>
+      <div class="ncard">
+        <h3>Markdown modules</h3>
+        <p>USAGE and TODO by default; add your own notes — headings, lists, <code>code</code>, <b>bold</b> — edit inline, reorder, delete.</p>
+      </div>
+      <div class="ncard" style="border-color:rgba(255,213,74,.4)">
+        <h3>Zero network · Zero hardcode</h3>
+        <p>Read-only data. No hidden writes. Everything the plugin does is local to your machine.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
