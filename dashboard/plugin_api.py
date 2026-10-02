@@ -42,58 +42,108 @@ def _todo_path() -> str:
     return default if os.path.exists(default) else None
 
 
+def _pick_cost(est: float, act: float, status: str, source: str):
+    """Cost 优先级：actual（真账单）> estimated（价表估算）> included（订阅已含，0）> unknown。
+    返回 (cost_usd, cost_status, cost_source)。全部 USD Base。"""
+    if act and act > 0:
+        return act, "actual", source or "provider"
+    if est and est > 0:
+        return est, status or "estimated", source or "official_docs_snapshot"
+    if status == "included":
+        return 0.0, "included", source or "subscription"
+    return 0.0, "unknown", source or "none"
+
+
 @router.get("/usage")
 async def usage():
-    """消耗总览：最近活跃会话 + 按模型聚合（含缓存命中/未命中）。"""
+    """消耗总览三层：session / all_time（真全量汇总）/ by_model。
+    全部使用 Hermes 原生 estimated/actual cost（USD Base），前端只做币种显示转换。"""
     db = _db_path()
     if not os.path.exists(db):
-        return {"session": None, "by_model": [], "error": "state.db not found"}
+        return {"session": None, "all_time": None, "by_model": [], "error": "state.db not found"}
     conn = sqlite3.connect(db)
     cur = conn.cursor()
+
+    def col(session_row, name):
+        try:
+            return session_row[name] or 0
+        except Exception:
+            return 0
+
     session = None
     try:
+        conn.row_factory = sqlite3.Row
+        cur = conn.cursor()
         cur.execute(
             "SELECT id, model, input_tokens, output_tokens, cache_read_tokens, "
-            "cache_write_tokens, reasoning_tokens, estimated_cost_usd "
-            "FROM sessions WHERE id NOT LIKE 'cron_%' "
+            "cache_write_tokens, reasoning_tokens, estimated_cost_usd, actual_cost_usd, "
+            "cost_status, cost_source FROM sessions WHERE id NOT LIKE 'cron_%' "
             "ORDER BY last_activity_at DESC LIMIT 1"
         )
         row = cur.fetchone()
         if row:
+            cost_usd, cost_status, cost_source = _pick_cost(
+                col(row, "estimated_cost_usd"), col(row, "actual_cost_usd"),
+                row["cost_status"] or "", row["cost_source"] or "")
             session = {
-                "id": (row[0] or "")[:24],
-                "model": row[1] or "",
-                "input": row[2] or 0,
-                "output": row[3] or 0,
-                "cache_read": row[4] or 0,
-                "cache_write": row[5] or 0,
-                "reasoning": row[6] or 0,
+                "id": (row["id"] or "")[:24],
+                "model": row["model"] or "",
+                "input": col(row, "input_tokens"),
+                "output": col(row, "output_tokens"),
+                "cache_read": col(row, "cache_read_tokens"),
+                "cache_write": col(row, "cache_write_tokens"),
+                "reasoning": col(row, "reasoning_tokens"),
+                "cost_usd": cost_usd,
+                "cost_status": cost_status,
+                "cost_source": cost_source,
             }
     except sqlite3.OperationalError:
         pass
+
+    all_time = None
     by_model = []
     try:
+        # 真 All-time：session_model_usage 全量 SUM（含 cron/vision/一切 task）。
         cur.execute(
-            "SELECT model, SUM(input_tokens), SUM(output_tokens), "
-            "SUM(cache_read_tokens), SUM(cache_write_tokens), SUM(reasoning_tokens) "
+            "SELECT SUM(input_tokens), SUM(output_tokens), SUM(cache_read_tokens), "
+            "SUM(cache_write_tokens), SUM(reasoning_tokens), "
+            "SUM(estimated_cost_usd), SUM(actual_cost_usd), COUNT(*) "
+            "FROM session_model_usage"
+        )
+        r = cur.fetchone()
+        if r and r[0] is not None:
+            cost_usd, cost_status, cost_source = _pick_cost(
+                r[5] or 0.0, r[6] or 0.0, "estimated", "aggregate")
+            all_time = {
+                "input": r[0] or 0, "output": r[1] or 0,
+                "cache_read": r[2] or 0, "cache_write": r[3] or 0,
+                "reasoning": r[4] or 0,
+                "cost_usd": cost_usd, "cost_status": cost_status, "cost_source": cost_source,
+                "rows": r[7] or 0,
+            }
+        # By Model：按 model 合并多 billing 行（token 全收，cost 加总）。
+        cur.execute(
+            "SELECT model, SUM(input_tokens), SUM(output_tokens), SUM(cache_read_tokens), "
+            "SUM(cache_write_tokens), SUM(reasoning_tokens), "
+            "SUM(estimated_cost_usd), SUM(actual_cost_usd), "
+            "MAX(cost_status), MAX(cost_source) "
             "FROM session_model_usage GROUP BY model "
             "ORDER BY SUM(input_tokens) DESC"
         )
-        by_model = [
-            {
+        for r in cur.fetchall():
+            cost_usd, cost_status, cost_source = _pick_cost(
+                r[6] or 0.0, r[7] or 0.0, r[8] or "", r[9] or "")
+            by_model.append({
                 "model": r[0] or "?",
-                "input": r[1] or 0,
-                "output": r[2] or 0,
-                "cache_read": r[3] or 0,
-                "cache_write": r[4] or 0,
+                "input": r[1] or 0, "output": r[2] or 0,
+                "cache_read": r[3] or 0, "cache_write": r[4] or 0,
                 "reasoning": r[5] or 0,
-            }
-            for r in cur.fetchall()
-        ]
+                "cost_usd": cost_usd, "cost_status": cost_status, "cost_source": cost_source,
+            })
     except sqlite3.OperationalError:
         pass
     conn.close()
-    return {"session": session, "by_model": by_model}
+    return {"session": session, "all_time": all_time, "by_model": by_model}
 
 
 def _parse_todo(text: str) -> list:
