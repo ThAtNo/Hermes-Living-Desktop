@@ -61,22 +61,27 @@ function makeColors(t, ink) {
   }
 }
 
-/* ── 货币 ─────────────────────────────── */
+/* ── 货币（USD Base → 显示层转换；静态参考汇率，非实时） ── */
 const CURRENCIES = {
-  CNY: { symbol: '¥', name: 'CNY', rate: 1 },
-  USD: { symbol: '$', name: 'USD', rate: 7.18 },
-  EUR: { symbol: '€', name: 'EUR', rate: 7.85 },
-  GBP: { symbol: '£', name: 'GBP', rate: 9.15 },
-  JPY: { symbol: '¥', name: 'JPY', rate: 0.048 },
+  USD: { symbol: '$', name: 'USD', rate: 1 },
+  CNY: { symbol: '¥', name: 'CNY', rate: 7.18 },
+  EUR: { symbol: '€', name: 'EUR', rate: 0.92 },
+  GBP: { symbol: '£', name: 'GBP', rate: 0.78 },
+  JPY: { symbol: '¥', name: 'JPY', rate: 148.5 },
 }
-function fmtMoney(cny, cur) {
-  const c = CURRENCIES[cur] || CURRENCIES.CNY
-  return c.symbol + (cny / c.rate).toFixed(2)
+const FX_NOTE = 'Reference FX · not real-time'
+function fmtUsd(usd, cur) {
+  const c = CURRENCIES[cur] || CURRENCIES.USD
+  return c.symbol + (usd * c.rate).toFixed(2)
 }
-function costOf(u, P) {
-  return (u.input || 0) / 1e6 * P.in
-    + ((u.output || 0) + (u.reasoning || 0)) / 1e6 * P.out
-    + (u.cache_read || 0) / 1e6 * P.cache
+/* Cost 来源 → 显示标签（朋友 K 条：区分 Cost / Estimated / unavailable） */
+function costTag(status) {
+  switch (status) {
+    case 'actual': return 'Cost'
+    case 'included': return 'Included'
+    case 'estimated': return 'Estimated Cost'
+    default: return 'Cost unavailable'
+  }
 }
 
 /* ── 图标（SVG 细线，currentColor 着色） ── */
@@ -324,8 +329,6 @@ export default {
   id: 'hermes-living-desktop',
   name: 'Live Desk',
   register(ctx) {
-    const P = { in: 2, out: 8, cache: 0.5 }
-
     Object.entries(THEME_DEFS).forEach(([key, t]) => {
       ctx.register({
         id: 'theme-' + key,
@@ -377,7 +380,13 @@ export default {
         children,
       })
 
-    function UsageCard({ session, sc, tc, currency }) {
+    function UsageCard({ session, allTime, byModel, currency }) {
+      const s = session
+      const sCost = s ? s.cost_usd || 0 : 0
+      const sTag = s ? costTag(s.cost_status) : '—'
+      const a = allTime
+      const aCost = a ? a.cost_usd || 0 : 0
+      const aTag = a ? costTag(a.cost_status) : '—'
       return jsxs('div', {
         style: {
           border: '1px solid var(--ui-stroke-secondary)', borderRadius: 12,
@@ -385,11 +394,38 @@ export default {
           background: 'color-mix(in oklab, ' + GOLD + ' 4%, transparent)',
         },
         children: [
-          jsx('div', { style: { fontSize: 24, fontWeight: 300, color: 'var(--ui-text-secondary)' }, children: fmtMoney(sc, currency) }),
-          row('session', session?.model || '—'),
-          row('input · miss', session ? (session.input / 1e6).toFixed(2) + 'M' : '—'),
-          row('cache · hit', session ? (session.cache_read / 1e6).toFixed(2) + 'M' : '—'),
-          row('all-time (main)', fmtMoney(tc, currency)),
+          /* Session */
+          jsxs('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }, children: [
+            jsx('span', { style: { fontSize: 10, letterSpacing: 1.2, color: 'var(--ui-text-tertiary)' }, children: 'SESSION' }),
+            jsx('span', { style: { fontSize: 10, color: 'var(--ui-text-tertiary)' }, children: sTag }),
+          ] }),
+          jsx('div', { style: { fontSize: 24, fontWeight: 300, color: 'var(--ui-text-secondary)', margin: '2px 0 6px' }, children: fmtUsd(sCost, currency) }),
+          row('model', s?.model || '—'),
+          row('input · miss', s ? (s.input / 1e6).toFixed(2) + 'M' : '—'),
+          row('cache · hit', s ? (s.cache_read / 1e6).toFixed(2) + 'M' : '—'),
+          row('reasoning', s ? (s.reasoning / 1e6).toFixed(2) + 'M' : '—'),
+          /* All-time 真汇总 */
+          jsxs('div', {
+            style: { display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 8, borderTop: '1px solid var(--ui-stroke-secondary)', paddingTop: 8 },
+            children: [
+              jsx('span', { style: { fontSize: 10, letterSpacing: 1.2, color: 'var(--ui-text-tertiary)' }, children: 'ALL-TIME' }),
+              jsx('span', { style: { fontSize: 10, color: 'var(--ui-text-tertiary)' }, children: aTag }),
+            ],
+          }),
+          jsx('div', { style: { fontSize: 20, fontWeight: 300, color: 'var(--ui-text-secondary)', margin: '2px 0 4px' }, children: fmtUsd(aCost, currency) }),
+          /* By Model 明细 */
+          jsx('div', { style: { fontSize: 10, letterSpacing: 1.2, color: 'var(--ui-text-tertiary)', margin: '8px 0 4px' }, children: 'BY MODEL' }),
+          (byModel || []).slice(0, 4).map(m =>
+            jsxs('div', {
+              key: m.model,
+              style: { display: 'flex', justifyContent: 'space-between', fontSize: 11, padding: '2px 0' },
+              children: [
+                jsx('span', { style: { color: 'var(--ui-text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 150 }, children: m.model }),
+                jsx('span', { style: { color: m.cost_usd > 0 ? 'var(--ui-text-secondary)' : 'var(--ui-text-tertiary)' }, children: m.cost_usd > 0 ? fmtUsd(m.cost_usd, currency) : 'n/a' }),
+              ],
+            }),
+          ),
+          jsx('div', { style: { fontSize: 9, color: 'var(--ui-text-tertiary)', marginTop: 6 }, children: FX_NOTE }),
         ],
       })
     }
@@ -450,10 +486,8 @@ export default {
       }, [])
 
       const session = data?.session
+      const allTime = data?.all_time
       const byModel = data?.by_model || []
-      const sc = session ? costOf(session, P) : 0
-      const main = byModel.find(m => !m.model.includes('flash') && !m.model.includes('vl') && !m.model.includes('vision'))
-      const tc = main ? costOf(main, P) : 0
 
       const applyTheme = (key) => {
         const name = 'hld-' + key
@@ -537,7 +571,7 @@ export default {
       }
 
       const renderModuleBody = (m) => {
-        if (m.kind === 'usage') return jsx(UsageCard, { session, sc, tc, currency })
+        if (m.kind === 'usage') return jsx(UsageCard, { session, allTime, byModel, currency })
         if (m.kind === 'todo') return jsx(TodoList, { items: todos.data?.items })
         if (m.kind === 'md') {
           if (editingId === m.id) {
@@ -690,6 +724,7 @@ export default {
                   ),
                 ],
               }),
+              jsx('div', { style: { fontSize: 9, color: 'var(--ui-text-tertiary)', marginTop: 1 }, children: FX_NOTE }),
               jsxs('div', {
                 style: { display: 'flex', alignItems: 'center', gap: 6 },
                 children: [
